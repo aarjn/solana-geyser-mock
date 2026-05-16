@@ -1,0 +1,17 @@
+[package]
+name = "solana-geyser-mock"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+yellowstone-grpc-proto = "12.3.0"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "time"] }
+tokio-util = "0.7.18"
+tokio-stream = "0.1.18"
+tracing = "0.1.44"
+solana-pubkey = "3"
+solana-signature = "3"
+rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
+futures = "0.3.32"
+async-trait = "0.1"
+thiserror = "1"
