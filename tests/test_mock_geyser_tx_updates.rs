@@ -1,6 +1,6 @@
 use futures::StreamExt;
-use solana_geyser_mock::geyser_events_stream::MockGeyserClient;
-use solana_geyser_mock::interface::GeyserSource;
+use solana_yellowstone_grpc_mock::geyser_client::MockGeyserClient;
+use solana_yellowstone_grpc_mock::interface::GeyserSource;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;

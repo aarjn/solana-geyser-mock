@@ -1377,26 +1377,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21e14a4f604117f379840956a8fc8695e4c84f5b0ebed192f31f60d9b85d581d"
 
 [[package]]
-name = "solana-geyser-mock"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64",
- "bs58",
- "futures",
- "rand",
- "solana-pubkey 3.0.0",
- "solana-signature",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tracing",
- "yellowstone-grpc-client",
- "yellowstone-grpc-proto",
-]
-
-[[package]]
 name = "solana-hash"
 version = "4.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1453,6 +1433,26 @@ dependencies = [
  "serde",
  "solana-sanitize",
  "wincode",
+]
+
+[[package]]
+name = "solana-yellowstone-grpc-mock"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "bs58",
+ "futures",
+ "rand",
+ "solana-pubkey 3.0.0",
+ "solana-signature",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "yellowstone-grpc-client",
+ "yellowstone-grpc-proto",
 ]
 
 [[package]]

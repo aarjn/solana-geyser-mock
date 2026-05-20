@@ -1,12 +1,12 @@
-# solana-geyser-mock
+# solana-yellowstone-grpc-mock
 
-A `GeyserSource` trait and mock implementation for testing Solana applications
+A `GeyserSource` trait and in-process mock for testing Solana applications
 that consume [Yellowstone gRPC](https://github.com/rpcpool/yellowstone-grpc)
 geyser streams.
 
-Write your trading bot, indexer, or monitoring service against `GeyserClient`,
-swap in `MockGeyserEventStream` for tests, and exercise your pipeline against
-deterministic or randomized event streams without spinning up a real validator.
+Write your trading bot, indexer, or monitoring service against `GeyserSource`,
+swap in `MockGeyserClient` for tests, and exercise your pipeline against
+randomized event streams without spinning up a real validator.
 
 ## Why
 
@@ -27,7 +27,7 @@ stays agnostic to the source.
 
 ```toml
 [dependencies]
-solana-geyser-mock = "0.1"
+solana-yellowstone-grpc-mock = "0.1"
 yellowstone-grpc-proto = "..."
 
 [dev-dependencies]
@@ -38,7 +38,7 @@ futures = "0.3"
 Write your pipeline against the trait:
 
 ```rust
-use solana_geyser_mock::interface::GeyserSource;
+use solana_yellowstone_grpc_mock::interface::GeyserSource;
 use futures::StreamExt;
 use yellowstone_grpc_proto::geyser::SubscribeRequest;
 
@@ -69,12 +69,14 @@ run_pipeline(client, my_subscription).await?;
 In tests, pass the mock:
 
 ```rust
-use solana_geyser_mock::MockGeyserClient;
+use solana_yellowstone_grpc_mock::MockGeyserClient;
 use std::time::Duration;
+use tokio_util::sync::CancellationToken;
 
 #[tokio::test]
-async fn pipeline_handles_account_updates(shutdown_token: CancellationToken) {
-    let mock = MockGeyserClient::new(0, Some(Duration::from_millis(2)), shutdown_token)
+async fn pipeline_handles_account_updates() {
+    let shutdown_token = CancellationToken::new();
+    let mock = MockGeyserClient::new(0, Some(Duration::from_millis(2)), shutdown_token);
     run_pipeline(mock, my_subscription).await.unwrap();
 }
 ```
@@ -83,7 +85,7 @@ async fn pipeline_handles_account_updates(shutdown_token: CancellationToken) {
 
 ```rust
 #[async_trait]
-pub trait GeyserClient: Send {
+pub trait GeyserSource: Send {
     type Error: std::error::Error + Send + Sync + 'static;
     type SinkError: std::error::Error + Send + Sync + 'static;
     type Sink: Sink<SubscribeRequest, Error = Self::SinkError> + Send + Unpin + 'static;
@@ -132,10 +134,14 @@ to fully random events so the stream stays lively.
 ## Configuration
 
 ```rust
-MockGeyserClient::new(0, Some(Duration::from_millis(2)), shutdown_token); // faster events for tests
+MockGeyserClient::new(
+    0,                                  // start_slot
+    Some(Duration::from_millis(2)),     // intra-slot interval (faster for tests)
+    shutdown_token,
+);
 ```
 
-default intra-slot interval is `10ms`.
+Default intra-slot interval is `10ms`.
 
 ## License
 
