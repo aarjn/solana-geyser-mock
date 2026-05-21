@@ -1,7 +1,10 @@
+use crate::fixtures::{FixtureError, FixtureEvent};
 use crate::geyser_events::{map_random_intraslot_event, map_slot_boundary_events};
 use crate::interface::GeyserSource;
 use async_trait::async_trait;
 use futures::Stream;
+use std::collections::HashMap;
+use std::path::PathBuf;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
@@ -32,6 +35,7 @@ pub struct MockGeyserClient {
     start_slot: u64,
     intraslot_mock_event_interval: Option<Duration>,
     shutdown_token: CancellationToken,
+    fixture_path: Option<PathBuf>,
 }
 
 impl MockGeyserClient {
@@ -44,7 +48,15 @@ impl MockGeyserClient {
             start_slot,
             intraslot_mock_event_interval,
             shutdown_token,
+            fixture_path: None,
         }
+    }
+
+    /// Use a fixture that replays events from a
+    /// JSON file with random mock data
+    pub fn with_fixture(mut self, path: impl Into<PathBuf>) -> Self {
+        self.fixture_path = Some(path.into());
+        self
     }
 
     /// Spawn the mock task with full access to the handle (events_rx,
@@ -55,6 +67,7 @@ impl MockGeyserClient {
             subscription,
             self.start_slot,
             self.intraslot_mock_event_interval,
+            self.fixture_path.clone(),
             self.shutdown_token.clone(),
         )
     }
@@ -138,15 +151,38 @@ impl GeyserSource for GeyserGrpcClient {
     }
 }
 
+fn try_load_fixture(path: &PathBuf) -> Result<HashMap<u64, Vec<FixtureEvent>>, FixtureError> {
+    let content = std::fs::read_to_string(path)?;
+    let events: Vec<FixtureEvent> = serde_json::from_str(&content)?;
+
+    let mut fixture_event_map: HashMap<u64, Vec<FixtureEvent>> = HashMap::new();
+    for event in events {
+        fixture_event_map.entry(event.slot).or_default().push(event);
+    }
+    Ok(fixture_event_map)
+}
+
 fn spawn_mock_task(
     subscription: SubscribeRequest,
     start_slot: u64,
     intraslot_mock_events_interval: Option<Duration>,
+    fixture_path: Option<PathBuf>,
     shutdown_token: CancellationToken,
 ) -> MockGeyserHandle {
     let mut current_slot = start_slot;
 
     let (downstream_tx, downstream_rx) = mpsc::channel(DOWNSTREAM_CHANNEL_CAPACITY);
+
+    let mut fixture_by_slot = match &fixture_path {
+        Some(path) => match try_load_fixture(path) {
+            Ok(map) => map,
+            Err(err) => {
+                warn!("failed to load fixture: {err}");
+                HashMap::new()
+            }
+        },
+        None => HashMap::new(),
+    };
 
     let intraslot_interval =
         intraslot_mock_events_interval.unwrap_or(INTRA_SLOT_MOCK_EVENT_INTERVAL_FALLBACK);
@@ -175,6 +211,24 @@ fn spawn_mock_task(
                 }
 
                 _ = slot_boundary_tick.tick() => {
+                    if let Some(fixture_events) = fixture_by_slot.remove(&current_slot) {
+                        for fixture_event in fixture_events {
+                            let update: Box<SubscribeUpdate> = match fixture_event.try_into() {
+                                Ok(u) => u,
+                                Err(err) => {
+                                    warn!("failed to convert fixture event: {err}");
+                                    continue;
+                                }
+                            };
+                            if let Err(err) = downstream_tx
+                                .send_timeout(update, DOWNSTREAM_SEND_TIMEOUT)
+                                .await
+                            {
+                                warn!("failed to send fixture event downstream: {err}");
+                            }
+                        }
+                    }
+
                     let events = map_slot_boundary_events(&subscription, current_slot);
                     current_slot = current_slot.saturating_add(1);
                     for event in events {

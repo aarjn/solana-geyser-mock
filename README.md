@@ -143,6 +143,70 @@ MockGeyserClient::new(
 
 Default intra-slot interval is `10ms`.
 
+## Fixtures
+
+You can inject pre-recorded events into the mock stream using a JSON fixture file. Fixture events are emitted alongside random events at the specified slot number.
+
+```rust
+let mut client = MockGeyserClient::new(0, Some(Duration::from_millis(5)), shutdown.clone())
+    .try_load_fixture("fixture/sample.json");
+```
+
+### Fixture file format
+
+The fixture file is a JSON array of events. Each event has a `slot` number (when to emit it), an `update_type`, and a `payload` that matches the corresponding proto struct.
+
+```json
+[
+  {
+    "slot": 2,
+    "update_type": "slot",
+    "payload": {
+      "parent": 100,
+      "status": 1
+    }
+  },
+  {
+    "slot": 2,
+    "update_type": "account",
+    "payload": {
+      "pubkey": "5YNmS1R9nNSCDzb5a7mMJ1dwK9uHeAAF4CerTf3CSEJM",
+      "owner": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "lamports": 2039280,
+      "data": "xvp6877brTo9ZfNqq8l0MbG75MLS9uDkfKYCA0UvXWENwwgfIhv6odn2qTUu/gOisDtaeCW1qlwW/gx3ccr/4wAvaFkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "executable": false,
+      "rent_epoch": 0,
+      "write_version": 0,
+      "is_startup": false
+    }
+  },
+  {
+    "slot": 5,
+    "update_type": "transaction",
+    "payload": {
+      "signature": "2AXDGYSE4f2sz7tvMMzyHvUfcoJmxudvdhBcmiUSo6ijwfYmfZYsKRxboQMPh3R4kUhXRVdtSXFXMheka4Rc4P2",
+      "is_vote": false,
+      "transaction": "CkABAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBEngKBAgBGAESIAICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICEiADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAxogBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQiCggBEgEAGgMFBgc=",
+      "meta": "EIgnGgaAlOvcAwAiBvjs6twDADISUHJvZ3JhbSBsb2c6IGhlbGxveAGAAdwL",
+      "index": 42
+    }
+  },
+  {
+    "slot": 8,
+    "update_type": "block_meta",
+    "payload": {
+      "blockhash": "4sGjMW1sUnHzSxGspuhpqLDx6wiyjNtZAMdL4VZHirAn",
+      "block_time": 1700000000,
+      "executed_transaction_count": 1500
+    }
+  }
+]
+```
+
+Supported `update_type` values: `account`, `slot`, `transaction`, `block_meta`.
+
+Fixture events are injected at the slot boundary when the mock reaches the specified `slot` number. Random events continue to stream alongside fixture data.
+
 ## License
 
 MIT or Apache-2.0, at your option.
